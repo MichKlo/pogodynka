@@ -1,0 +1,75 @@
+import pandas as pd
+import pyodbc
+import matplotlib.pyplot as plt
+import numpy as np
+plt.style.use('_mpl-gallery-nogrid')
+
+
+plt.rcParams["figure.figsize"] = (16,12)
+
+conn = pyodbc.connect('Driver={SQL server};'
+                      'Server=analityk.wwsi.edu.pl,50221;'
+                      'Database=Synop;'
+                      'uid=student;'
+                      'pwd=ciekawski;')
+ycomm='''select S.Szerokosc from Stacje as S inner join Depesze as D on S.IDStacji = D.Stacja
+where kraj='Poland'and Data=Cast(DATEADD(Day, -1,GETDATE()) as Date) and s.IDStacji!=12001
+group by s.szerokosc,s.Dlugosc
+order by  s.Dlugosc'''
+xcomm='''select S.Dlugosc from Stacje as S inner join Depesze as D on S.IDStacji = D.Stacja
+where kraj='Poland'and Data=Cast(DATEADD(Day, -1,GETDATE()) as Date) and s.IDStacji!=12001
+group by s.szerokosc,s.Dlugosc
+order by  s.Dlugosc'''
+zcomm='''select round(avg(D.TemperaturaPowietrza),0) as SrTemp from Stacje as S inner join Depesze as D on S.IDStacji = D.Stacja
+where kraj='Poland'and Data=Cast(DATEADD(Day, -1,GETDATE()) as Date) and d.IDStacji!=12001
+group by s.szerokosc,s.Dlugosc
+order by  s.Dlugosc'''
+
+ncomm='''select S.nazwa from Stacje as S inner join Depesze as D on S.IDStacji = D.Stacja
+where kraj='Poland'and Data=Cast(DATEADD(Day, -1,GETDATE()) as Date) and s.IDStacji!=12001
+group by s.szerokosc,s.Dlugosc,s.nazwa
+order by  s.Dlugosc'''
+
+
+x=pd.read_sql_query(xcomm, conn)
+resx = x.to_numpy().flatten().tolist()
+y=pd.read_sql_query(ycomm, conn)
+resy = y.to_numpy().flatten().tolist()
+z=pd.read_sql_query(zcomm, conn)
+resz = z.to_numpy().flatten().tolist()
+
+n=pd.read_sql_query(ncomm, conn)              #
+resn = n.to_numpy().flatten().tolist()         #
+
+scomm='select dl from PolskaPunkty order by nr'
+dcomm='select szer from PolskaPunkty order by nr'
+
+s=pd.read_sql_query(scomm, conn)
+ress = s.to_numpy().flatten().tolist()
+
+d=pd.read_sql_query(dcomm, conn)
+resd = d.to_numpy().flatten().tolist()
+
+lresx=list(map(float,resx))
+lresy=list(map(float,resy))
+lresz=list(map(float,resz))
+
+lress=list(map(float,ress))
+lresd=list(map(float,resd))
+
+levels = np.linspace(min(lresz), max(lresz), 30)
+
+# plot:
+fig, ax = plt.subplots()
+
+ax.plot(lresx, lresy, 'o', markersize=10, color='lightgrey')
+cs=ax.tricontourf(lresx, lresy, lresz, levels=levels)
+ax.plot(lress, lresd, 'o', markersize=1, color='black')
+ax.set(ylim=(49, 55), xlim=(14, 25))
+
+
+for i in range(len(lresx)):
+        text = ax.text(lresx[i], lresy[i],resn[i],fontsize=14)
+
+cbar=fig.colorbar(cs)
+plt.show()
